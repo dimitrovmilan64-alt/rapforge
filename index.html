@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RapForge — AI Music Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e8e8f0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 30px; }
+    h1 {
+      font-size: 2.4rem;
+      background: linear-gradient(135deg, #ff4d8d, #3ee0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .subtitle { color: #888; font-size: 0.95rem; }
+    .card {
+      background: #14141c;
+      border: 1px solid #222;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+    label:first-child { margin-top: 0; }
+    input, textarea, select {
+      width: 100%;
+      background: #0d0d14;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    textarea { min-height: 220px; resize: vertical; line-height: 1.5; }
+    .style-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip {
+      background: #1e1e2a;
+      border: 1px solid #333;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip:hover, .chip.active {
+      background: #3ee0ff22;
+      border-color: #3ee0ff;
+      color: #3ee0ff;
+    }
+    button.generate {
+      width: 100%;
+      margin-top: 20px;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ff4d8d, #3ee0ff);
+      color: #000;
+      cursor: pointer;
+    }
+    button.generate:hover { opacity: 0.9; }
+    button.generate:disabled { opacity: 0.5; cursor: not-allowed; }
+    .result { margin-top: 20px; display: none; }
+    .result.show { display: block; }
+    .player {
+      background: #0d0d14;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .player audio { width: 100%; margin-top: 12px; }
+    .status { text-align: center; padding: 40px 20px; color: #888; }
+    .status .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #3ee0ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .note {
+      background: #1a1a12;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-top: 20px;
+    }
+    .note strong { color: #ff4d8d; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>RapForge</h1>
+      <p class="subtitle">Генерирай рап песни локално — стил + текстове</p>
+    </header>
+
+    <div class="card">
+      <label>Заглавие на песента</label>
+      <input type="text" id="title" placeholder="напр. Четвъртия качак">
+
+      <label>Стил / Жанр</label>
+      <input type="text" id="style" placeholder="напр. dark underground Bulgarian trap, aggressive male vocals, heavy 808s">
+      <div class="style-chips">
+        <span class="chip" data-style="dark underground Bulgarian trap, aggressive flow, heavy 808s">Dark Trap</span>
+        <span class="chip" data-style="Balkan trap, emotional, male rap, hard beats">Balkan Trap</span>
+        <span class="chip" data-style="boom bap, conscious rap, dusty drums, old school">Boom Bap</span>
+        <span class="chip" data-style="melodic trap, auto-tune, emotional, modern">Melodic Trap</span>
+        <span class="chip" data-style="drill, dark, aggressive, sliding 808s">Drill</span>
+      </div>
+
+      <label>Текстове (с тагове)</label>
+      <textarea id="lyrics" placeholder="[Verse]\nПиши тук куплета...\n\n[Chorus]\nПиши припева...\n\n[Verse]\nОще един куплет..."></textarea>
+
+      <button class="generate" id="generateBtn" onclick="generate()">Генерирай песен</button>
+    </div>
+
+    <div class="result" id="result">
+      <div class="card">
+        <div id="status" class="status">
+          <div class="spinner"></div>
+          <div>Генериране на песен...</div>
+        </div>
+        <div id="playerBox" class="player" style="display:none;">
+          <div style="font-weight:600; margin-bottom:8px;" id="songTitle"></div>
+          <audio controls id="audioPlayer"></audio>
+          <div style="margin-top:12px; font-size:0.85rem; color:#888;">Готово</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Изискване:</strong><br>
+      1. Пусни ACE-Step API (порт 8001)<br>
+      2. Пусни <code>python server.py</code> (порт 8000)<br>
+      3. Отвори тази страница
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        document.getElementById('style').value = chip.dataset.style;
+      });
+    });
+
+    function generate() {
+      const title = document.getElementById('title').value || 'Без заглавие';
+      const style = document.getElementById('style').value;
+      const lyrics = document.getElementById('lyrics').value;
+
+      if (!style || !lyrics) {
+        alert('Попълни стил и текстове');
+        return;
+      }
+
+      const btn = document.getElementById('generateBtn');
+      const result = document.getElementById('result');
+      const status = document.getElementById('status');
+      const playerBox = document.getElementById('playerBox');
+
+      btn.disabled = true;
+      result.classList.add('show');
+      status.style.display = 'block';
+      playerBox.style.display = 'none';
+
+      fetch('http://localhost:8000/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, style, lyrics })
+      })
+      .then(res => res.json())
+      .then(data => {
+        status.style.display = 'none';
+        playerBox.style.display = 'block';
+        document.getElementById('songTitle').textContent = data.title || title;
+        if (data.audio_url) {
+          document.getElementById('audioPlayer').src = 'http://localhost:8000' + data.audio_url;
+        }
+        btn.disabled = false;
+      })
+      .catch(err => {
+        status.innerHTML = '<div>Грешка: Backend не е стартиран.<br>Пусни <code>python server.py</code></div>';
+        btn.disabled = false;
+      });
+    }
+  </script>
+</body>
+</html>
